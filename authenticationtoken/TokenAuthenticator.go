@@ -24,7 +24,12 @@ func init() {
 }
 
 func FetchTokenAuthenticator(secretValue, domain string, validityInMins int) (*TokenAuthenticator, error) {
+
+	var tkAuthenticator *TokenAuthenticator
+	tokenAuthenticatorMutex.RLock()
 	tkAuthenticator, ok := TokenAuthenticators[domain]
+	tokenAuthenticatorMutex.RUnlock()
+
 	var err error = nil
 	if !ok {
 		log.Debug().Msg("Constructing New Authenticator for domain :" + domain)
