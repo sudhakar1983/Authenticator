@@ -1,8 +1,9 @@
-package authenticationtoken
+package main
 
 import (
 	"aidanwoods.dev/go-paseto"
 	"github.com/rs/zerolog/log"
+	"sync"
 	"time"
 )
 
@@ -11,6 +12,28 @@ type TokenAuthenticator struct {
 	publicKey              paseto.V4AsymmetricPublicKey
 	publicKeyHex           string
 	tokenValidityInMinutes int
+}
+
+const QUERY_PARAM_USRTOKEN = "usrtoken"
+
+var tokenAuthenticatorMutex = &sync.RWMutex{}
+var TokenAuthenticators map[string]*TokenAuthenticator
+
+func init() {
+	TokenAuthenticators = map[string]*TokenAuthenticator{}
+}
+
+func FetchTokenAuthenticator(secretValue, domain string, validityInMins int) (*TokenAuthenticator, error) {
+	tkAuthenticator, ok := TokenAuthenticators[domain]
+	var err error = nil
+	if !ok {
+		log.Debug().Msg("Constructing New Authenticator for domain :" + domain)
+		tkAuthenticator, err = NewTokenAuthenticator(secretValue, validityInMins)
+		tokenAuthenticatorMutex.Lock()
+		TokenAuthenticators[domain] = tkAuthenticator
+		tokenAuthenticatorMutex.Unlock()
+	}
+	return tkAuthenticator, err
 }
 
 func NewTokenAuthenticator(secretKeyHex string, validityInMins int) (*TokenAuthenticator, error) {
@@ -48,8 +71,10 @@ func (authenticator *TokenAuthenticator) GenerateToken(domain string, userId str
 	return signed
 }
 
-func (authenticator *TokenAuthenticator) ValidateToken(token string) (bool, bool, error) {
+func (authenticator *TokenAuthenticator) ValidateToken(token string, domain string, userId string) (bool, bool, error) {
 	parser := paseto.NewParser()
+	parser.AddRule(paseto.IssuedBy(domain))
+	parser.AddRule(paseto.Subject(userId))
 	_, tokenErr := parser.ParseV4Public(authenticator.publicKey, token, nil)
 
 	isExpired := false
@@ -61,9 +86,8 @@ func (authenticator *TokenAuthenticator) ValidateToken(token string) (bool, bool
 	return isExpired, isInvalid, tokenErr
 }
 
+//
 //func main() {
-//	//  "golang.org/x/crypto/bcrypt"
-//	//  "github.com/golang-jwt/jwt/v5"
 //	//secretKey, publicKey, publicKeyStr := generateKeys()
 //	//log.Debug().Msgf("secretKey : %v", secretKey)
 //	//log.Debug().Msgf("secretKeyStr : %v", secretKey.ExportHex())
@@ -72,11 +96,13 @@ func (authenticator *TokenAuthenticator) ValidateToken(token string) (bool, bool
 //
 //	secretKeyStr := "e329a819b409784a74cf432bea023e051da41bb1e3894a1d1d3810d0d2d752e5b3a913accc6c65af3603db8c52ce33900c5b223b4e695eedb6978692251b8a81"
 //	authenticator, _ := NewTokenAuthenticator(secretKeyStr, 2)
-//	token := authenticator.GenerateToken("knowme", "sudhakar")
-//	log.Debug().Msgf("token : %v", token)
 //
+//	//token := authenticator.GenerateToken("knowme", "sudhakar")
+//	//log.Debug().Msgf("token : %v", token)
+//
+//	tokenStr := "v4.public.eyJleHAiOiIyMDIzLTEwLTAyVDE5OjExOjA2LTA0OjAwIiwiaWF0IjoiMjAyMy0xMC0wMlQxOTowOTowNi0wNDowMCIsImlzcyI6Imtub3dtZSIsIm5iZiI6IjIwMjMtMTAtMDJUMTk6MDk6MDYtMDQ6MDAiLCJzdWIiOiJzdWRoYWthciJ9HVtPiRbAOstZcEFrVsM71AxKDqNjK4RBJQR8O4Eyb83zxSnGB8aqAAEeZ6hOugKOVKhZ-fngzwsalOL3DsAODA"
 //	start := time.Now()
-//	isExpired, isInvalid, tokenErr := authenticator.ValidateToken(token)
+//	isExpired, isInvalid, tokenErr := authenticator.ValidateToken(tokenStr, "knowme", "sudhakar1")
 //	elapsed := time.Since(start)
 //
 //	log.Debug().Msgf("ExecutionTime took %s", elapsed)
