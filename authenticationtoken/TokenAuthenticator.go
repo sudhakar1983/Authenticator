@@ -71,10 +71,10 @@ func (authenticator *TokenAuthenticator) GenerateToken(domain string, userId str
 	return signed
 }
 
-func (authenticator *TokenAuthenticator) ValidateToken(token string, domain string, userId string) (bool, bool, error) {
+func (authenticator *TokenAuthenticator) ValidateToken(token string, domain string) (bool, bool, error) {
 	parser := paseto.NewParser()
 	parser.AddRule(paseto.IssuedBy(domain))
-	parser.AddRule(paseto.Subject(userId))
+	//parser.AddRule(paseto.Subject(userId))
 	_, tokenErr := parser.ParseV4Public(authenticator.publicKey, token, nil)
 
 	isExpired := false
