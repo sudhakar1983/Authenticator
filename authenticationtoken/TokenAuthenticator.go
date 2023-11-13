@@ -1,5 +1,6 @@
-// package authenticationtoken
-package main
+package authenticationtoken
+
+//package main
 
 import (
 	"aidanwoods.dev/go-paseto"
@@ -113,37 +114,38 @@ func IsSerialNumValid(serialNumber string) paseto.Rule {
 	}
 }
 
-func main() {
-	//secretKey, publicKey, publicKeyStr := generateKeys()
-	//log.Debug().Msgf("secretKey : %v", secretKey)
-	//log.Debug().Msgf("secretKeyStr : %v", secretKey.ExportHex())
-	//log.Debug().Msgf("publicKey : %v", publicKey)
-	//log.Debug().Msgf("publicKeyStr : %v", publicKeyStr)
-
-	domain := "knowme"
-	subject := "sudhakar"
-	serialNum := "12345"
-
-	secretKeyStr := "e329a819b409784a74cf432bea023e051da41bb1e3894a1d1d3810d0d2d752e5b3a913accc6c65af3603db8c52ce33900c5b223b4e695eedb6978692251b8a81"
-	authenticator, _ := NewTokenAuthenticator(secretKeyStr, 2)
-
-	tokenStr := test_generateToken(authenticator, domain, subject, serialNum)
-	isInvalid := test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
-	log.Info().Msgf("isValid :%v", !isInvalid)
-
-	domain = "knowme"
-	subject = "sudhakar1"
-	serialNum = "12345"
-	isInvalid = test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
-	log.Info().Msgf("Case : When wrong Subject ; Token Result :%v", !isInvalid)
-
-	domain = "knowme"
-	subject = "sudhakar"
-	serialNum = "123456"
-	isInvalid = test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
-	log.Info().Msgf("Case : When wrong SerialNum ; Token Result :%v", !isInvalid)
-
-}
+//
+//func main() {
+//	//secretKey, publicKey, publicKeyStr := generateKeys()
+//	//log.Debug().Msgf("secretKey : %v", secretKey)
+//	//log.Debug().Msgf("secretKeyStr : %v", secretKey.ExportHex())
+//	//log.Debug().Msgf("publicKey : %v", publicKey)
+//	//log.Debug().Msgf("publicKeyStr : %v", publicKeyStr)
+//
+//	domain := "knowme"
+//	subject := "sudhakar"
+//	serialNum := "12345"
+//
+//	secretKeyStr := "e329a819b409784a74cf432bea023e051da41bb1e3894a1d1d3810d0d2d752e5b3a913accc6c65af3603db8c52ce33900c5b223b4e695eedb6978692251b8a81"
+//	authenticator, _ := NewTokenAuthenticator(secretKeyStr, 2)
+//
+//	tokenStr := test_generateToken(authenticator, domain, subject, serialNum)
+//	isInvalid := test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
+//	log.Info().Msgf("isValid :%v", !isInvalid)
+//
+//	domain = "knowme"
+//	subject = "sudhakar1"
+//	serialNum = "12345"
+//	isInvalid = test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
+//	log.Info().Msgf("Case : When wrong Subject ; Token Result :%v", !isInvalid)
+//
+//	domain = "knowme"
+//	subject = "sudhakar"
+//	serialNum = "123456"
+//	isInvalid = test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
+//	log.Info().Msgf("Case : When wrong SerialNum ; Token Result :%v", !isInvalid)
+//
+//}
 
 func test_generateToken(authenticator *TokenAuthenticator, domain, userid string, serialNum string) string {
 	token := authenticator.GenerateToken(domain, userid, serialNum)
