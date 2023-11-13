@@ -1,7 +1,9 @@
-package authenticationtoken
+// package authenticationtoken
+package main
 
 import (
 	"aidanwoods.dev/go-paseto"
+	"fmt"
 	"github.com/rs/zerolog/log"
 	"sync"
 	"time"
@@ -15,6 +17,7 @@ type TokenAuthenticator struct {
 }
 
 const QUERY_PARAM_USRTOKEN = "usrtoken"
+const GLOBAL_KEY = "GLOBAL_KEY"
 
 var tokenAuthenticatorMutex = &sync.RWMutex{}
 var TokenAuthenticators map[string]*TokenAuthenticator
@@ -63,10 +66,12 @@ func generateKeys() (paseto.V4AsymmetricSecretKey, paseto.V4AsymmetricPublicKey,
 	return secretKey, publicKey, publicKeyStr
 }
 
-func (authenticator *TokenAuthenticator) GenerateToken(domain string, userId string) string {
+// Serial number - to invalidate all tokens if needed.
+func (authenticator *TokenAuthenticator) GenerateToken(domain string, subject string, serialNumber string) string {
 	token := paseto.NewToken()
 	token.SetIssuer(domain)
-	token.SetSubject(userId)
+	token.SetSubject(subject)
+	token.Set(GLOBAL_KEY, serialNumber)
 
 	token.SetIssuedAt(time.Now())
 	token.SetNotBefore(time.Now())
@@ -76,10 +81,11 @@ func (authenticator *TokenAuthenticator) GenerateToken(domain string, userId str
 	return signed
 }
 
-func (authenticator *TokenAuthenticator) ValidateToken(token string, domain string) (bool, bool, error) {
+func (authenticator *TokenAuthenticator) ValidateToken(token string, domain string, subject string, serialNumber string) (bool, bool, error) {
 	parser := paseto.NewParser()
 	parser.AddRule(paseto.IssuedBy(domain))
-	//parser.AddRule(paseto.Subject(userId))
+	parser.AddRule(paseto.Subject(subject))
+	parser.AddRule(IsSerialNumValid(serialNumber))
 	_, tokenErr := parser.ParseV4Public(authenticator.publicKey, token, nil)
 
 	isExpired := false
@@ -91,27 +97,67 @@ func (authenticator *TokenAuthenticator) ValidateToken(token string, domain stri
 	return isExpired, isInvalid, tokenErr
 }
 
-//
-//func main() {
-//	//secretKey, publicKey, publicKeyStr := generateKeys()
-//	//log.Debug().Msgf("secretKey : %v", secretKey)
-//	//log.Debug().Msgf("secretKeyStr : %v", secretKey.ExportHex())
-//	//log.Debug().Msgf("publicKey : %v", publicKey)
-//	//log.Debug().Msgf("publicKeyStr : %v", publicKeyStr)
-//
-//	secretKeyStr := "e329a819b409784a74cf432bea023e051da41bb1e3894a1d1d3810d0d2d752e5b3a913accc6c65af3603db8c52ce33900c5b223b4e695eedb6978692251b8a81"
-//	authenticator, _ := NewTokenAuthenticator(secretKeyStr, 2)
-//
-//	//token := authenticator.GenerateToken("knowme", "sudhakar")
-//	//log.Debug().Msgf("token : %v", token)
-//
-//	tokenStr := "v4.public.eyJleHAiOiIyMDIzLTEwLTAyVDE5OjExOjA2LTA0OjAwIiwiaWF0IjoiMjAyMy0xMC0wMlQxOTowOTowNi0wNDowMCIsImlzcyI6Imtub3dtZSIsIm5iZiI6IjIwMjMtMTAtMDJUMTk6MDk6MDYtMDQ6MDAiLCJzdWIiOiJzdWRoYWthciJ9HVtPiRbAOstZcEFrVsM71AxKDqNjK4RBJQR8O4Eyb83zxSnGB8aqAAEeZ6hOugKOVKhZ-fngzwsalOL3DsAODA"
-//	start := time.Now()
-//	isExpired, isInvalid, tokenErr := authenticator.ValidateToken(tokenStr, "knowme", "sudhakar1")
-//	elapsed := time.Since(start)
-//
-//	log.Debug().Msgf("ExecutionTime took %s", elapsed)
-//	log.Debug().Msgf("isExpired : %v", isExpired)
-//	log.Debug().Msgf("isInvalid : %v", isInvalid)
-//	log.Debug().Msgf("tokenErr : %v", tokenErr)
-//}
+// SERIAL_NUM validator
+func IsSerialNumValid(serialNumber string) paseto.Rule {
+	return func(token paseto.Token) error {
+		var serialNumberTmp string
+		err := token.Get(GLOBAL_KEY, &serialNumberTmp)
+		if err != nil {
+			return err
+		}
+
+		if serialNumber != serialNumberTmp {
+			return fmt.Errorf("this token is not valid anymore expected `%s'. `%s' found", serialNumberTmp, serialNumber)
+		}
+		return nil
+	}
+}
+
+func main() {
+	//secretKey, publicKey, publicKeyStr := generateKeys()
+	//log.Debug().Msgf("secretKey : %v", secretKey)
+	//log.Debug().Msgf("secretKeyStr : %v", secretKey.ExportHex())
+	//log.Debug().Msgf("publicKey : %v", publicKey)
+	//log.Debug().Msgf("publicKeyStr : %v", publicKeyStr)
+
+	domain := "knowme"
+	subject := "sudhakar"
+	serialNum := "12345"
+
+	secretKeyStr := "e329a819b409784a74cf432bea023e051da41bb1e3894a1d1d3810d0d2d752e5b3a913accc6c65af3603db8c52ce33900c5b223b4e695eedb6978692251b8a81"
+	authenticator, _ := NewTokenAuthenticator(secretKeyStr, 2)
+
+	tokenStr := test_generateToken(authenticator, domain, subject, serialNum)
+	isInvalid := test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
+	log.Info().Msgf("isValid :%v", !isInvalid)
+
+	domain = "knowme"
+	subject = "sudhakar1"
+	serialNum = "12345"
+	isInvalid = test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
+	log.Info().Msgf("Case : When wrong Subject ; Token Result :%v", !isInvalid)
+
+	domain = "knowme"
+	subject = "sudhakar"
+	serialNum = "123456"
+	isInvalid = test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
+	log.Info().Msgf("Case : When wrong SerialNum ; Token Result :%v", !isInvalid)
+
+}
+
+func test_generateToken(authenticator *TokenAuthenticator, domain, userid string, serialNum string) string {
+	token := authenticator.GenerateToken(domain, userid, serialNum)
+	return token
+}
+
+func test_validateToken(authenticator *TokenAuthenticator, domain, subject string, serialNum string, tokenStr string) bool {
+	start := time.Now()
+	_, isInvalid, tokenErr := authenticator.ValidateToken(tokenStr, domain, subject, serialNum)
+	elapsed := time.Since(start)
+
+	if tokenErr != nil {
+		log.Error().Msgf("Token err %v", tokenErr)
+	}
+	log.Debug().Msgf("ExecutionTime took %s", elapsed)
+	return isInvalid
+}
