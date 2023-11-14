@@ -67,8 +67,15 @@ func generateKeys() (paseto.V4AsymmetricSecretKey, paseto.V4AsymmetricPublicKey,
 	return secretKey, publicKey, publicKeyStr
 }
 
+type AuthenticationToken struct {
+	Token                   string
+	TokenTime               int64
+	ValidityPeriodInMinutes int
+	Status                  string
+}
+
 // Serial number - to invalidate all tokens if needed.
-func (authenticator *TokenAuthenticator) GenerateToken(domain string, subject string, serialNumber string) string {
+func (authenticator *TokenAuthenticator) GenerateToken(domain string, subject string, serialNumber string) AuthenticationToken {
 	token := paseto.NewToken()
 	token.SetIssuer(domain)
 	token.SetSubject(subject)
@@ -79,7 +86,13 @@ func (authenticator *TokenAuthenticator) GenerateToken(domain string, subject st
 	token.SetExpiration(time.Now().Add(time.Duration(authenticator.tokenValidityInMinutes) * time.Minute))
 	signed := token.V4Sign(authenticator.secretKey, nil)
 	log.Debug().Msgf("signed : %v", signed)
-	return signed
+
+	authToken := AuthenticationToken{}
+	authToken.Token = signed
+	authToken.TokenTime = time.Now().Unix()
+	authToken.ValidityPeriodInMinutes = authenticator.tokenValidityInMinutes
+
+	return authToken
 }
 
 func (authenticator *TokenAuthenticator) ValidateToken(token string, domain string, subject string, serialNumber string) (bool, bool, error) {
@@ -114,13 +127,15 @@ func IsSerialNumValid(serialNumber string) paseto.Rule {
 	}
 }
 
-//
 //func main() {
-//	//secretKey, publicKey, publicKeyStr := generateKeys()
-//	//log.Debug().Msgf("secretKey : %v", secretKey)
-//	//log.Debug().Msgf("secretKeyStr : %v", secretKey.ExportHex())
-//	//log.Debug().Msgf("publicKey : %v", publicKey)
-//	//log.Debug().Msgf("publicKeyStr : %v", publicKeyStr)
+//
+//	/*
+//		//secretKey, publicKey, publicKeyStr := generateKeys()
+//		//log.Debug().Msgf("secretKey : %v", secretKey)
+//		//log.Debug().Msgf("secretKeyStr : %v", secretKey.ExportHex())
+//		//log.Debug().Msgf("publicKey : %v", publicKey)
+//		//log.Debug().Msgf("publicKeyStr : %v", publicKeyStr)
+//	*/
 //
 //	domain := "knowme"
 //	subject := "sudhakar"
@@ -129,25 +144,25 @@ func IsSerialNumValid(serialNumber string) paseto.Rule {
 //	secretKeyStr := "e329a819b409784a74cf432bea023e051da41bb1e3894a1d1d3810d0d2d752e5b3a913accc6c65af3603db8c52ce33900c5b223b4e695eedb6978692251b8a81"
 //	authenticator, _ := NewTokenAuthenticator(secretKeyStr, 2)
 //
-//	tokenStr := test_generateToken(authenticator, domain, subject, serialNum)
-//	isInvalid := test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
+//	authToken := test_generateToken(authenticator, domain, subject, serialNum)
+//	isInvalid := test_validateToken(authenticator, domain, subject, serialNum, authToken.Token)
 //	log.Info().Msgf("isValid :%v", !isInvalid)
 //
 //	domain = "knowme"
 //	subject = "sudhakar1"
 //	serialNum = "12345"
-//	isInvalid = test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
+//	isInvalid = test_validateToken(authenticator, domain, subject, serialNum, authToken.Token)
 //	log.Info().Msgf("Case : When wrong Subject ; Token Result :%v", !isInvalid)
 //
 //	domain = "knowme"
 //	subject = "sudhakar"
 //	serialNum = "123456"
-//	isInvalid = test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
+//	isInvalid = test_validateToken(authenticator, domain, subject, serialNum, authToken.Token)
 //	log.Info().Msgf("Case : When wrong SerialNum ; Token Result :%v", !isInvalid)
 //
 //}
 
-func test_generateToken(authenticator *TokenAuthenticator, domain, userid string, serialNum string) string {
+func test_generateToken(authenticator *TokenAuthenticator, domain, userid string, serialNum string) AuthenticationToken {
 	token := authenticator.GenerateToken(domain, userid, serialNum)
 	return token
 }
