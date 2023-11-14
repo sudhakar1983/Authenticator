@@ -21,6 +21,6 @@ git tag $version && git push origin $version
 
 
 
-go get github.com/sudhakar1983/Authenticator@v1.0.1
+go get github.com/sudhakar1983/Authenticator@v1.1.0
 
 // go get github.com/sudhakar1983/Configuration@v1.2.4
