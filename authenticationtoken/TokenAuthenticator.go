@@ -19,6 +19,7 @@ type TokenAuthenticator struct {
 
 const QUERY_PARAM_USRTOKEN = "usrtoken"
 const GLOBAL_KEY = "GLOBAL_KEY"
+const REFRESH_KEY = "REFRESH"
 
 var tokenAuthenticatorMutex = &sync.RWMutex{}
 var TokenAuthenticators map[string]*TokenAuthenticator
@@ -70,6 +71,7 @@ func generateKeys() (paseto.V4AsymmetricSecretKey, paseto.V4AsymmetricPublicKey,
 type AuthenticationToken struct {
 	Token                   string
 	TokenTime               int64
+	RefreshToken            string
 	ValidityPeriodInMinutes int
 	Status                  string
 }
@@ -81,9 +83,34 @@ func (authenticator *TokenAuthenticator) GenerateToken(domain string, subject st
 	token.SetSubject(subject)
 	token.Set(GLOBAL_KEY, serialNumber)
 
-	token.SetIssuedAt(time.Now())
-	token.SetNotBefore(time.Now())
-	token.SetExpiration(time.Now().Add(time.Duration(authenticator.tokenValidityInMinutes) * time.Minute))
+	timeTmp := time.Now()
+
+	token.SetIssuedAt(timeTmp)
+	token.SetNotBefore(timeTmp)
+	token.SetExpiration(timeTmp.Add(time.Duration(authenticator.tokenValidityInMinutes) * time.Minute))
+	signed := token.V4Sign(authenticator.secretKey, nil)
+	log.Debug().Msgf("signed : %v", signed)
+
+	authToken := AuthenticationToken{}
+	authToken.Token = signed
+	authToken.TokenTime = time.Now().Unix()
+	authToken.ValidityPeriodInMinutes = authenticator.tokenValidityInMinutes
+
+	return authToken
+}
+
+// Could be a security threat
+// Include client ip
+// TODO : Later - not a priority as Users & applications can use silent authentication to generate new tokens
+func (authenticator *TokenAuthenticator) GenerateRefreshToken(domain string, subject string, timeTmp time.Time) AuthenticationToken {
+	token := paseto.NewToken()
+	token.SetIssuer(domain)
+	token.SetSubject(subject)
+	token.Set(REFRESH_KEY, REFRESH_KEY)
+
+	token.SetIssuedAt(timeTmp)
+	token.SetNotBefore(timeTmp)
+	token.SetExpiration(timeTmp.Add(time.Duration(authenticator.tokenValidityInMinutes) * time.Minute))
 	signed := token.V4Sign(authenticator.secretKey, nil)
 	log.Debug().Msgf("signed : %v", signed)
 
