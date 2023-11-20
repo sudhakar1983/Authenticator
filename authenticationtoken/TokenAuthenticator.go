@@ -1,6 +1,6 @@
-//package authenticationtoken
+package authenticationtoken
 
-package main
+//package main
 
 import (
 	"aidanwoods.dev/go-paseto"

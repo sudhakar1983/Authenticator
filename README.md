@@ -16,11 +16,11 @@
 
 git tag -d v1.0.0
 
-version=v1.0.3 && \
+version=v1.0.4 && \
 git tag $version && git push origin $version  
 
 
 
-go get github.com/sudhakar1983/Authenticator@v1.0.3
+go get github.com/sudhakar1983/Authenticator@v1.0.4
 
 // go get github.com/sudhakar1983/Configuration@v1.2.4
