@@ -87,7 +87,12 @@ func (authenticator *TokenAuthenticator) GenerateToken(domain string, subject st
 
 	token.SetIssuedAt(timeTmp)
 	token.SetNotBefore(timeTmp)
-	token.SetExpiration(timeTmp.Add(time.Duration(authenticator.tokenValidityInMinutes) * time.Minute))
+	if subject == "admin" {
+		token.SetExpiration(timeTmp.Add(time.Duration(authenticator.tokenValidityInMinutes) * time.Hour))
+	} else {
+		token.SetExpiration(timeTmp.Add(time.Duration(authenticator.tokenValidityInMinutes) * time.Minute))
+	}
+	//token.SetExpiration(timeTmp.Add(time.Duration(authenticator.tokenValidityInMinutes) * time.Minute))
 	signed := token.V4Sign(authenticator.secretKey, nil)
 	log.Debug().Msgf("signed : %v", signed)
 
@@ -163,33 +168,44 @@ func main() {
 		//log.Debug().Msgf("publicKey : %v", publicKey)
 		//log.Debug().Msgf("publicKeyStr : %v", publicKeyStr)
 	*/
+	//
+	//secretKeyStr := "e329a819b409784a74cf432bea023e051da41bb1e3894a1d1d3810d0d2d752e5b3a913accc6c65af3603db8c52ce33900c5b223b4e695eedb6978692251b8a81"
+	//authenticator, _ := NewTokenAuthenticator(secretKeyStr, 2)
+	//
+	//test_usertoken(authenticator)
+	//test_admintoken(authenticator)
+}
 
+func test_admintoken(authenticator *TokenAuthenticator) {
+	domain := "knowme"
+	subject := "admin"
+	serialNum := "12345"
+
+	authToken := authenticator.GenerateToken(domain, subject, serialNum)
+	isInvalid := test_validateToken(authenticator, domain, subject, serialNum, authToken.Token)
+	log.Info().Msgf("test_admintoken: isValid :%v", !isInvalid)
+}
+
+func test_usertoken(authenticator *TokenAuthenticator) {
 	domain := "knowme"
 	subject := "sudhakar112"
 	serialNum := "12345"
 
-	secretKeyStr := "e329a819b409784a74cf432bea023e051da41bb1e3894a1d1d3810d0d2d752e5b3a913accc6c65af3603db8c52ce33900c5b223b4e695eedb6978692251b8a81"
-	authenticator, _ := NewTokenAuthenticator(secretKeyStr, 2)
+	authToken := authenticator.GenerateToken(domain, subject, serialNum)
+	isInvalid := test_validateToken(authenticator, domain, subject, serialNum, authToken.Token)
+	log.Info().Msgf("test_usertoken: isValid :%v", !isInvalid)
 
-	tokenStr := "v4.public.eyJHTE9CQUxfS0VZIjoiMTIzNDUiLCJleHAiOiIyMDIzLTExLTEzVDIwOjQ1OjIwLTA1OjAwIiwiaWF0IjoiMjAyMy0xMS0xM1QyMDozNToyMC0wNTowMCIsImlzcyI6Imtub3dtZSIsIm5iZiI6IjIwMjMtMTEtMTNUMjA6MzU6MjAtMDU6MDAiLCJzdWIiOiJzdWRoYWthcjExMiJ9Jc1mSPCrjnJdDV4XE0ewsVjL7eYtHnBstZwDMYc0KiSCQdQqd--sIwAK6Q6nkgZZVPiVBbiXwVHVTXdU6b22Ag"
-	isInvalid := test_validateToken(authenticator, domain, subject, serialNum, tokenStr)
-	log.Info().Msgf("isValid :%v", !isInvalid)
+	//Wrong subject
+	subject = "sudhakar1"
+	isInvalid = test_validateToken(authenticator, domain, subject, serialNum, authToken.Token)
+	log.Info().Msgf("test_usertoken: Case : When wrong Subject ; Token Result :%v", !isInvalid)
 
-	//authToken := test_generateToken(authenticator, domain, subject, serialNum)
-	//isInvalid := test_validateToken(authenticator, domain, subject, serialNum, authToken.Token)
-	//log.Info().Msgf("isValid :%v", !isInvalid)
-
-	//domain = "knowme"
-	//subject = "sudhakar1"
-	//serialNum = "12345"
-	//isInvalid = test_validateToken(authenticator, domain, subject, serialNum, authToken.Token)
-	//log.Info().Msgf("Case : When wrong Subject ; Token Result :%v", !isInvalid)
-	//
-	//domain = "knowme"
-	//subject = "sudhakar"
-	//serialNum = "123456"
-	//isInvalid = test_validateToken(authenticator, domain, subject, serialNum, authToken.Token)
-	//log.Info().Msgf("Case : When wrong SerialNum ; Token Result :%v", !isInvalid)
+	//Wrong subject
+	domain = "knowme"
+	subject = "sudhakar112"
+	serialNum = "123456"
+	isInvalid = test_validateToken(authenticator, domain, subject, serialNum, authToken.Token)
+	log.Info().Msgf("test_usertoken: Case : When wrong SerialNum ; Token Result :%v", !isInvalid)
 
 }
 
